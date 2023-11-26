@@ -1,6 +1,6 @@
 /*
  ============================================================================
- Name        : BBBCAM_OV5642_DigitalCamera.c
+ Name        : BBBCAM_OV2640_DigitalCamera.c
  Author      : Lee
  Version     : V1.0
  Copyright   : ArduCAM demo (C)2015 Lee
@@ -19,55 +19,44 @@
 #define TRUE 1
 #define FALSE 0
 
-#define OV5642_CHIPID_HIGH 0x300a
-#define OV5642_CHIPID_LOW 0x300b
+
+#define OV2640_CHIPID_HIGH 	0x0A
+#define OV2640_CHIPID_LOW 	0x0B
 
 void setup()
 {
-  // i2c pin config
-  system("config-pin P9_18 i2c > /dev/null 2>&1");
-  system("config-pin P9_17 i2c > /dev/null 2>&1");
-
-// SPI pin config
-//   system("config-pin P9_28 spi_cs > /dev/null 2>&1");
-//   system("config-pin P9_29 spi > /dev/null 2>&1"); // MISO (master in slave out)
-//   system("config-pin P9_30 spi > /dev/null 2>&1"); // MOSI (master out slave in)
-//   system("config-pin P9_31 spi_sclk > /dev/null 2>&1");
-
-
-  
   uint8_t vid,pid;
-  uint8_t temp; 
+  uint8_t temp;
 
   UTFT();
-  ArduCAM(OV5642);
+  ArduCAM(OV2640);
   printf("ArduCAM Start!\n");
 
   //Check if the ArduCAM SPI bus is OK
-  write_reg(ARDUCHIP_TEST1, 0x55); //ARDUCHIP_TEST1 = 0x00
+  write_reg(ARDUCHIP_TEST1, 0x55);
   temp = read_reg(ARDUCHIP_TEST1);
-  printf("Value of temp in BBBCAM_OV5642_DigitalCamera is %u\n", temp);
-
   if(temp != 0x55)
   {
   	printf("SPI interface Error!\n");
   	while(1);
   }
-  
+
   //Change MCU mode
   write_reg(ARDUCHIP_MODE, 0x00);
 
   InitLCD();
-  
-  //Check if the camera module type is OV5642
-  rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
-  rdSensorReg16_8(OV5642_CHIPID_LOW, &pid);
-  if((vid != 0x56) || (pid != 0x42))
-  	printf("Can't find OV5642 module!\n");
+
+  //Check if the camera module type is OV2640
+  rdSensorReg8_8(OV2640_CHIPID_HIGH, &vid);
+  //printf("vid is : %x",vid);
+  rdSensorReg8_8(OV2640_CHIPID_LOW, &pid);
+  //printf("   pid is : %x\n",pid);
+  if((vid != 0x26) || (pid != 0x42))
+  	printf("Can't find OV2640 module!\n");
   else
-  	printf("OV5642 detected\n");
-  	
-  //Change to BMP capture mode and initialize the OV5642 module	  	
+  	printf("OV2640 detected\n");
+
+  //Change to BMP capture mode and initialize the OV2640 module
   set_format(BMP);
 
   InitCAM();
@@ -75,9 +64,8 @@ void setup()
 
 int main(void)
 {
-	BOOL isShowFlag = TRUE;
 	int nmemb = 1;
-
+	BOOL isShowFlag = TRUE;
 	setup();
 
 	while(1)
@@ -92,25 +80,24 @@ int main(void)
 		//Wait trigger from shutter buttom
 		if(read_reg(ARDUCHIP_TRIG) & SHUTTER_MASK)
 		{
-			printf("Trigger initialized - commencing acquisition \n");
 			isShowFlag = FALSE;
 			write_reg(ARDUCHIP_MODE, 0x00);
 			set_format(JPEG);
 			InitCAM();
-			write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH
 
+			OV2640_set_JPEG_size(OV2640_640x480);
+			//OV2640_set_JPEG_size(OV2640_1600x1200);
 			//Wait until buttom released
 			while(read_reg(ARDUCHIP_TRIG) & SHUTTER_MASK);
-			delayms(1000);
+			sleep(1);
 			start_capture = 1;
-    	
 		}
 		else
 		{
 			if(isShowFlag )
 			{
 				temp = read_reg(ARDUCHIP_TRIG);
-  
+
 				if(!(temp & VSYNC_MASK))				 			//New Frame is coming
 				{
 					write_reg(ARDUCHIP_MODE, 0x00);    		//Switch to MCU
@@ -130,12 +117,12 @@ int main(void)
 			capture();
 			printf("Start Capture\n");
 		}
-  
+
 		if(read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)
 		{
 
 			printf("Capture Done!\n");
-    
+
 			//Construct a file name
 			memset(filePath,0,20);
 			strcat(filePath,"/home/");
@@ -182,7 +169,7 @@ int main(void)
 			clear_fifo_flag();
 			//Clear the start capture flag
 			start_capture = 0;
-    
+
 			set_format(BMP);
 			InitCAM();
 			isShowFlag = TRUE;
