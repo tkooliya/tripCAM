@@ -25,14 +25,14 @@
 void setup()
 {
   // i2c pin config
-  system("config-pin P9_18 i2c > /dev/null 2>&1");
-  system("config-pin P9_17 i2c > /dev/null 2>&1");
+  system("config-pin P9_18 i2c > /dev/null");
+  system("config-pin P9_17 i2c > /dev/null");
 
 // SPI pin config
-//   system("config-pin P9_28 spi_cs > /dev/null 2>&1");
-//   system("config-pin P9_29 spi > /dev/null 2>&1"); // MISO (master in slave out)
-//   system("config-pin P9_30 spi > /dev/null 2>&1"); // MOSI (master out slave in)
-//   system("config-pin P9_31 spi_sclk > /dev/null 2>&1");
+  system("config-pin P9_28 spi_cs > /dev/null");
+  system("config-pin P9_29 spi > /dev/null"); // MISO (master in slave out)
+  system("config-pin P9_30 spi > /dev/null"); // MOSI (master out slave in)
+  system("config-pin P9_31 spi_sclk > /dev/null");
 
 
   
@@ -45,19 +45,11 @@ void setup()
 
   //Check if the ArduCAM SPI bus is OK
   write_reg(ARDUCHIP_TEST1, 0x55); //ARDUCHIP_TEST1 = 0x00
-  temp = read_reg(ARDUCHIP_TEST1);
-  printf("Value of temp in BBBCAM_OV5642_DigitalCamera is %u\n", temp);
 
-  if(temp != 0x55)
-  {
-  	printf("SPI interface Error!\n");
-  	while(1);
-  }
-  
   //Change MCU mode
   write_reg(ARDUCHIP_MODE, 0x00);
 
-  InitLCD();
+  //InitLCD();
   
   //Check if the camera module type is OV5642
   rdSensorReg16_8(OV5642_CHIPID_HIGH, &vid);
@@ -68,20 +60,42 @@ void setup()
   	printf("OV5642 detected\n");
   	
   //Change to BMP capture mode and initialize the OV5642 module	  	
-  set_format(BMP);
+  set_format(JPEG);
 
+  
+  temp = read_reg(ARDUCHIP_TEST1);
+  int temp2 = read_reg(0xBE);
+
+  printf("Value of temp in BBBCAM_OV5642_DigitalCamera is %u\n", temp);
+  printf("Value of temp in BBBCAM_OV5642_DigitalCamera is %u\n", temp2);
   InitCAM();
+
+  if(temp != 0x55)
+  {
+	printf("SPI interface Error!\n");
+	while(1);
+  }
+  else{
+	printf("SPI interface Good!\n");
+	uint8_t bong = read_reg(ARDUCHIP_TRIG);
+
+	uint8_t bing = bong & SHUTTER_MASK;
+	printf("The arduchip_trig register is %u, and the if condition is %u\n", bong, bing);
+	uint8_t version = read_reg(0x40);
+	printf("ARDUCHIP VERSION = %d \n", version);
+  }
+
+
 }
 
 int main(void)
 {
 	BOOL isShowFlag = TRUE;
 	int nmemb = 1;
-
+	int p = 0;
 	setup();
 
-	while(1)
-	{
+	for(p = 0; p < 1; p++){
 		uint8_t buf[256];
 		static int i = 0;
 		static int k = 0;
@@ -90,13 +104,15 @@ int main(void)
 		uint8_t start_capture = 0;
 
 		//Wait trigger from shutter buttom
-		if(read_reg(ARDUCHIP_TRIG) & SHUTTER_MASK)
+		if(read_reg(ARDUCHIP_TRIG))
 		{
+
 			printf("Trigger initialized - commencing acquisition \n");
 			isShowFlag = FALSE;
 			write_reg(ARDUCHIP_MODE, 0x00);
 			set_format(JPEG);
 			InitCAM();
+
 			write_reg(ARDUCHIP_TIM, VSYNC_LEVEL_MASK);		//VSYNC is active HIGH
 
 			//Wait until buttom released
@@ -107,18 +123,21 @@ int main(void)
 		}
 		else
 		{
+			printf("Entering else statement of read_reg(ARDUCHIP_TRIG) & SHUTTER_MASK");
 			if(isShowFlag )
 			{
 				temp = read_reg(ARDUCHIP_TRIG);
   
 				if(!(temp & VSYNC_MASK))				 			//New Frame is coming
 				{
+					printf("entering the if statement of temp & VSYNC_MASK");
 					write_reg(ARDUCHIP_MODE, 0x00);    		//Switch to MCU
 					resetXY();
 					write_reg(ARDUCHIP_MODE, 0x01);    		//Switch to CAM
 					while(!(read_reg(ARDUCHIP_TRIG)&0x01)); 	//Wait for VSYNC is gone
 				}
 			}
+			printf("Exiting the else statement in main!");
 		}
 		if(start_capture)
 		{
@@ -129,16 +148,17 @@ int main(void)
 			//Start capture
 			capture();
 			printf("Start Capture\n");
+			write_reg(ARDUCHIP_TRIG, CAP_DONE_MASK);
 		}
   
-		if(read_reg(ARDUCHIP_TRIG) & CAP_DONE_MASK)
+		if(read_reg(ARDUCHIP_TRIG))
 		{
 
 			printf("Capture Done!\n");
     
 			//Construct a file name
 			memset(filePath,0,20);
-			strcat(filePath,"/home/");
+			strcat(filePath,"/mnt/remote/myApps");
 			getnowtime();
 			strcat(filePath,nowtime);
 			strcat(filePath,".jpg");
@@ -183,9 +203,11 @@ int main(void)
 			//Clear the start capture flag
 			start_capture = 0;
     
-			set_format(BMP);
+			set_format(JPEG);
 			InitCAM();
 			isShowFlag = TRUE;
+			printf("Results Stored!\n");
 		}
 	}
+	return 0;
 }

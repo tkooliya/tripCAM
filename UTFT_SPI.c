@@ -45,7 +45,7 @@ void LCD_Write_COM(char VL)
 void LCD_Write_DATA(char VH,char VL)
 {
 	bus_write(0xBF, VH);
-  	bus_write(0xBF, VL);
+	bus_write(0xBF, VL);
 }
 
 void LCD_Writ_Bus(char VH,char VL, uint8_t mode)

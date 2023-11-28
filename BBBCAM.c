@@ -125,40 +125,49 @@ void bus_write(uint8_t address, uint8_t value)
 				 .tx_buf = (unsigned long)tx,   
 				 .rx_buf = (unsigned long)rx,   
 				 .len = ARRAY_SIZE(tx),
+				 .cs_change = (int) 0,
 				 .delay_usecs = delay,
 				 .speed_hz = speed,
 				 .bits_per_word = bits,
 		  };
+	
 	ret = ioctl(spi0, SPI_IOC_MESSAGE(1), &tr);
+	if (ret < 0){
+		printf("ERROR: SPI TRANSFER FAILED");
+	}
 	printf("%d is the ret val - WRITE\n", ret);
 	printf("CHECKING THE VALUE STORED IN BUS_WRITE, tx[0] = %u, expect 128 because 0x00 | 0x80\n", tx[0]);
 	printf("CHECKING THE VALUE STORED IN BUS_WRITE, tx[1] = %u, expect 85 because data = 0x55\n", tx[1]);
-	printf("CHECKING THE VALUE STORED IN BUS_WRITE, rx[1] = %u, expect 85 maybe\n", rx[1]);
+	// printf("CHECKING THE VALUE STORED IN BUS_WRITE, rx[0] = %u, expect 85 maybe\n", rx[0]);
+	// printf("CHECKING THE VALUE STORED IN BUS_WRITE, rx[1] = %u, expect 85 maybe\n", rx[1]);
 }
 
 uint8_t bus_read(uint8_t address)
 {
 	int ret;
+	printf("%u is address for BUS READ\n", address);
 	uint8_t tx[2]={address,0x00};
 	uint8_t rx[2]={0,};
-	printf("CHECKING THE VALUE STORED IN BUS_READ, rx[1] = %u, expected 85\n", rx[1]);
 	struct spi_ioc_transfer tr = {
 				 .tx_buf = (unsigned long)tx,   
 				 .rx_buf = (unsigned long)rx,   
 				 .len = ARRAY_SIZE(tx),
+				 .cs_change = (int) 0,
 				 .delay_usecs = delay,
 				 .speed_hz = speed,
 				 .bits_per_word = bits,
 		  };
-	printf("CHECKING THE VALUE STORED IN BUS_READ, rx[1] = %u, expected 85\n", rx[1]);
 	ret = ioctl(spi0, SPI_IOC_MESSAGE(1), &tr);
-	printf("%d is the ret val - READ\n", ret);
-	printf("CHECKING THE VALUE STORED IN BUS_READ, tx[0] = %u\n", tx[0]);
-	printf("CHECKING THE VALUE STORED IN BUS_READ, tx[1] = %u, expected 0 \n", tx[1]);
-	printf("CHECKING THE VALUE STORED IN BUS_READ, tx[2] = %u, expected 0 \n", tx[2]);
-	printf("CHECKING THE VALUE STORED IN BUS_READ, rx[0] = %u\n", rx[0]);
+	if (ret < 0){
+		printf("ERROR: SPI TRANSFER FAILED");
+	}
+	// printf("%d is the ret val - READ\n", ret);
+	// printf("CHECKING THE VALUE STORED IN BUS_READ, tx[0] = %u\n", tx[0]);
+	// printf("CHECKING THE VALUE STORED IN BUS_READ, tx[1] = %u, expected 0 \n", tx[1]);
+	// printf("CHECKING THE VALUE STORED IN BUS_READ, tx[2] = %u, expected 0 \n", tx[2]);
+	// printf("CHECKING THE VALUE STORED IN BUS_READ, rx[0] = %u\n", rx[0]);
 	printf("CHECKING THE VALUE STORED IN BUS_READ, rx[1] = %u, expected 85\n", rx[1]);
-	printf("CHECKING THE VALUE STORED IN BUS_READ, rx[2] = %u\n", rx[2]);
+	//printf("CHECKING THE VALUE STORED IN BUS_READ, rx[2] = %u\n", rx[2]);
   	return rx[1];
 }
 
@@ -412,7 +421,7 @@ int ArduCAM(uint8_t model)
 		exit(1);
 	}
 	if (spi0 < 0)
-		printf("can't open device BBBCAM.c");
+		printf("can't open device BBBCAM");
 	ret = ioctl(spi0, SPI_IOC_WR_MODE, &mode); 
 	printf("%d\n", ret); 
 	if (ret == -1)
